@@ -1,0 +1,73 @@
+public class AsyncImageLoadeers {
+	private HashMap<String, WeakReference<Bitmap>> imageCache;
+	private BlockingQueue<Runnable> queue;
+	private ThreadPoolExecutor executor;
+
+	public AsyncImageLoadeers() {
+		imageCache = new HashMap<String, WeakReference<Bitmap>>();
+		queue = new LinkedBlockingQueue<Runnable>();
+		executor = new ThreadPoolExecutor(1, 60, 180, TimeUnit.SECONDS, queue);
+	}
+//sdcard/zyreader/downbook/
+	public Bitmap loadDrawable(final Context context, final String imageUrl,
+			final ImageCallbacks imageCallback) {
+		if (imageCache.containsKey(imageUrl)) {
+			WeakReference<Bitmap> softReference = imageCache.get(imageUrl);
+			Bitmap drawable = softReference.get();
+			if (drawable != null) {
+				return drawable;
+			}
+		}
+		final Handler handler = new Handler() {
+			public void handleMessage(Message message) {
+				imageCallback.imageLoaded((Bitmap) message.obj, imageUrl);
+			}
+		};
+
+		executor.execute(new Runnable() {
+			@Override
+			public void run() {
+				Bitmap bitmap = loadImageFromUrl(context, imageUrl);
+				imageCache.put(imageUrl, new WeakReference<Bitmap>(bitmap));
+				Message message = handler.obtainMessage(0, bitmap);
+				handler.sendMessage(message);
+			}
+		});
+		return null;
+	}
+
+	public static Bitmap loadImageFromUrl(Context context, String imageUrl) {
+ BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = 2;
+		Bitmap bitmap = null;
+		if (imageUrl == null)
+			return null;
+		String fileName = "";
+		if (imageUrl != null && imageUrl.length() != 0) {
+			fileName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+		}
+		File file = new File(context.getCacheDir(), fileName);
+		if (!file.exists() && !file.isDirectory()) {
+			try {
+				FileOutputStream fos = new FileOutputStream(file);
+				InputStream is = new URL(imageUrl).openStream();
+				int data = is.read();
+				while (data != -1) {
+					fos.write(data);
+					data = is.read();
+				}
+				fos.close();
+				is.close();
+				bitmap = BitmapFactory.decodeFile(file.toString(),options );
+			} catch (IOException e) {
+				
+			}
+		} else {
+			bitmap = BitmapFactory.decodeFile(file.toString(),options );
+		}
+		return bitmap;
+	}
+	public interface ImageCallbacks {
+		public void imageLoaded(Bitmap imageDrawable, String imageUrl);
+	}
+}

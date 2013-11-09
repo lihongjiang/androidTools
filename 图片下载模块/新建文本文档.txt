@@ -1,0 +1,126 @@
+public class SPBookClassAdapter extends BaseAdapter {
+
+	private LayoutInflater infalter;
+	private List<SPSearchResultBean> list;
+	private ViewHolder viewHolder;
+	private AsyncImageLoader asyncImageLoader;
+	private Context con;
+	private ListView lv;
+
+	private int frameWidth = 0;
+	private int frameHeight = 0;
+
+	private int imageWidth = 0;
+	private int imageHeight = 0;
+
+	private SharedPreferences sh;
+
+	public SPBookClassAdapter(Context con, List<SPSearchResultBean> list,
+			ListView lv) {
+		this.list = list;
+		this.con = con;
+		this.lv = lv;
+		infalter = LayoutInflater.from(this.con);
+		asyncImageLoader = new AsyncImageLoader();
+
+		sh = con.getSharedPreferences(MyData.SH_DPI_NAME, 0);
+
+		if (sh.getInt(MyData.SH_DPI_TYPE, 0) == 0) {
+			frameHeight = 120;
+			frameWidth = 90;
+			imageHeight = 108;
+			imageWidth = 78;
+		} else if (sh.getInt(MyData.SH_DPI_TYPE, 0) == 1) {
+			frameHeight = 150;
+			frameWidth = 120;
+			imageHeight = 138;
+			imageWidth = 108;
+		}
+	}
+
+	@Override
+	public int getCount() {
+		if (this.list == null) {
+			return 0;
+		}
+		return this.list.size();
+	}
+
+	@Override
+	public Object getItem(int position) {
+		if (this.list == null) {
+			return null;
+		}
+		return this.list.get(position);
+	}
+
+	@Override
+	public long getItemId(int position) {
+		return position;
+	}
+
+	@Override
+	public View getView(int position, View convertView, ViewGroup parent) {
+		if (convertView == null) {
+			viewHolder = new ViewHolder();
+			convertView = infalter.inflate(R.layout.sp_book_item, null);
+			viewHolder.bookIntroTv = (TextView) convertView
+					.findViewById(R.id.sp_bookclass_bookintro_tv);
+			viewHolder.bookNameTv = (TextView) convertView
+					.findViewById(R.id.sp_bookclass_bookname_tv);
+			viewHolder.thumbImage = (ImageView) convertView
+					.findViewById(R.id.sp_bookclass_tubmbl_mv);
+			viewHolder.thumbBgImagev = (ImageView) convertView
+					.findViewById(R.id.sp_bookclass_tubmbl_frame);
+
+			Bitmap bit = BitmapFactory.decodeResource(con.getResources(),
+					R.drawable.sp_bookbg_frame);
+			if (bit == null) {
+				Log.e("spbookclass:", "bit == null");
+			}
+			viewHolder.thumbBgImagev.setImageBitmap(ImageUtils.changeSize(bit,
+					frameWidth,frameHeight));
+			convertView.setTag(viewHolder);
+		} else {
+			viewHolder = (ViewHolder) convertView.getTag();
+		}
+
+		final String tag = this.list.get(position).getThumbUrl();
+		viewHolder.thumbImage.setTag(tag);
+		String image_url = this.list.get(position).getThumbUrl();
+		
+		Bitmap cachedImage = asyncImageLoader.loadDrawable(this.con, image_url,
+				new ImageCallback() {
+					public void imageLoaded(Bitmap imageDrawable,
+							String imageUrl) {
+						ImageView imageViewByTag = (ImageView) lv
+								.findViewWithTag(tag);
+						if (imageViewByTag != null && imageDrawable != null) {
+							imageViewByTag.setImageBitmap(ImageUtils
+									.changeSize(imageDrawable, imageWidth, imageHeight));
+						}
+					}
+				});
+
+		if (cachedImage == null) {
+			Bitmap bit = BitmapFactory.decodeResource(con.getResources(),
+					R.drawable.sp_default_book);
+			viewHolder.thumbImage.setImageBitmap(ImageUtils.changeSize(bit,
+					imageWidth, imageHeight));
+		} else {
+			viewHolder.thumbImage.setImageBitmap(ImageUtils.changeSize(
+					cachedImage, imageWidth, imageHeight));
+		}
+
+		viewHolder.bookNameTv.setText(this.list.get(position).getBookName());
+		viewHolder.bookIntroTv.setText(this.list.get(position).getIntrouce());
+		return convertView;
+	}
+
+	private class ViewHolder {
+		ImageView thumbImage;
+		ImageView thumbBgImagev;
+		TextView bookNameTv;
+		TextView bookIntroTv;
+	}
+}
